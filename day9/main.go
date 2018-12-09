@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	"fmt"
 )
 
@@ -21,9 +22,9 @@ func score(players, lastMarbleScore int) int {
 }
 
 type game struct {
-	ring       []int
+	ring       *list.List
+	cur        *list.Element
 	scores     map[int]int
-	cur        int
 	nextMarble int
 	players    int
 	nextPlayer int
@@ -33,7 +34,7 @@ func newGame(players, marbles int) game {
 	return game{
 		players: players,
 		scores:  make(map[int]int),
-		ring:    make([]int, 0, marbles),
+		ring:    list.New(),
 	}
 }
 
@@ -53,60 +54,48 @@ func (g *game) takeTurn() int {
 	g.nextMarble++
 	g.nextPlayer = (g.nextPlayer + 1) % g.players
 
-	if m > 0 && m%23 == 0 {
-		r := normalizeIndex(g.cur-7, len(g.ring))
-		g.scores[p] += m + g.ring[r]
-		g.remove(r)
-		g.cur = r
-		return g.cur
+	if g.ring.Len() == 0 {
+		g.cur = g.ring.PushFront(0)
+		return g.cur.Value.(int)
+	} else if g.ring.Len() == 1 {
+		g.cur = g.ring.PushBack(1)
+		return g.cur.Value.(int)
+	} else if g.ring.Len() == 2 {
+		g.cur = g.ring.InsertBefore(2, g.cur)
+		return g.cur.Value.(int)
 	}
 
-	i := g.normalizeInsertionIndex(g.cur + 2)
-	g.insert(m, i)
-	g.cur = i
-	return g.cur
+	if m%23 == 0 {
+		g.scores[p] += m
+		for i := 0; i < 7; i++ {
+			g.movePrev()
+		}
+		newCur := g.cur.Next()
+		if newCur == nil {
+			newCur = g.ring.Front()
+		}
+		g.scores[p] += g.ring.Remove(g.cur).(int)
+		g.cur = newCur
+		return g.cur.Value.(int)
+	}
+
+	g.moveNext()
+	g.cur = g.ring.InsertAfter(m, g.cur)
+	return g.cur.Value.(int)
 }
 
-func normalizeIndex(i, curLen int) int {
-	for i < curLen {
-		i += curLen
+func (g *game) moveNext() {
+	if g.cur.Next() == nil {
+		g.cur = g.ring.Front()
+	} else {
+		g.cur = g.cur.Next()
 	}
-	if i >= curLen {
-		i = i % curLen
-	}
-	return i
 }
 
-func (g *game) normalizeInsertionIndex(i int) int {
-	cl := len(g.ring)
-	if cl <= 1 {
-		return cl
+func (g *game) movePrev() {
+	if g.cur.Prev() == nil {
+		g.cur = g.ring.Back()
+	} else {
+		g.cur = g.cur.Prev()
 	}
-
-	i = normalizeIndex(i, cl)
-	if i == 0 {
-		i = cl
-	}
-	return i
-}
-
-func (g *game) remove(i int) int {
-	m := g.ring[i]
-
-	a := g.ring
-	a = a[:i+copy(a[i:], a[i+1:])]
-	g.ring = a
-
-	//g.ring = append(g.ring[:i], g.ring[i+1:]...)
-	return m
-}
-
-func (g *game) insert(m, i int) {
-	if len(g.ring) == i {
-		g.ring = append(g.ring, m)
-		return
-	}
-	g.ring = append(g.ring, 0)
-	copy(g.ring[i+1:], g.ring[i:])
-	g.ring[i] = m
 }
