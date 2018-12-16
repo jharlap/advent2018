@@ -18,7 +18,9 @@ func main() {
 
 	fmt.Println(string(in))
 	g := GameFrom(in)
-	fmt.Println(g.Units)
+	g.RunRound()
+	fmt.Println(string(g.Map.data))
+	fmt.Println("Outcome:", g.Outcome())
 }
 
 type Unit struct {
@@ -86,11 +88,11 @@ func (g *Game) RunRound() bool {
 			continue
 		}
 
-		inRange := g.unitsInRange(u)
+		inRange := g.enemiesInRange(u)
 		if len(inRange) == 0 {
 			moved := g.moveUnit(u)
 			if moved {
-				inRange = g.unitsInRange(u)
+				inRange = g.enemiesInRange(u)
 			}
 		}
 
@@ -125,8 +127,22 @@ func (g *Game) removeUnit(u *Unit) {
 	}
 }
 
+func (g *Game) canMove(u *Unit) bool {
+	var canMove bool
+	g.Map.For4Neighbors(u.X, u.Y, func(x, y int, b byte) {
+		if b == Empty {
+			canMove = true
+		}
+	})
+	return canMove
+}
+
 // moveUnit moves a unit closer to the nearest enemy, returning whether a move was possible or not
 func (g *Game) moveUnit(u *Unit) bool {
+	if !g.canMove(u) {
+		return false
+	}
+
 	ui := g.Map.XY.ToIndex(u.X, u.Y)
 	p := PathCalculatorFrom(g)
 	var (
@@ -151,14 +167,12 @@ func (g *Game) moveUnit(u *Unit) bool {
 
 	if minDist == PathMaxDist {
 		// no movement possible!
-		fmt.Println("minDist is maxed!")
 		return false
 	}
 
 	path := p.ShortestPath(ui, minUnitIdx)
 	if len(path) == 0 {
 		// no movement possible!
-		fmt.Println("path is empty!")
 		return false
 	}
 
@@ -171,10 +185,10 @@ func (g *Game) moveUnit(u *Unit) bool {
 	return true
 }
 
-func (g *Game) unitsInRange(u *Unit) []*Unit {
+func (g *Game) enemiesInRange(u *Unit) []*Unit {
 	nn := make(map[int]bool)
 	g.Map.For4Neighbors(u.X, u.Y, func(x, y int, v byte) {
-		if v != Empty && v != Wall {
+		if v != Empty && v != Wall && v != u.Marker {
 			nn[g.Map.XY.ToIndex(x, y)] = true
 		}
 	})

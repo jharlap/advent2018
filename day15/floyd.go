@@ -31,7 +31,13 @@ func PathCalculatorFrom(g *Game) *PathCalculator {
 	n := len(p.dist)
 	for k := 0; k < n; k++ {
 		for i := 0; i < n; i++ {
+			if i == k {
+				continue
+			}
 			for j := 0; j < n; j++ {
+				if i == j || k == j {
+					continue
+				}
 				if p.dist[i][j] > p.dist[i][k]+p.dist[k][j] {
 					p.dist[i][j] = p.dist[i][k] + p.dist[k][j]
 					p.next[i][j] = p.next[i][k]
@@ -61,7 +67,7 @@ func (p *PathCalculator) ShortestPath(u, v int) []int {
 		return nil
 	}
 
-	r := []int{u}
+	var r []int
 	for u != v {
 		u = p.next[u][v]
 		r = append(r, u)

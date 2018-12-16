@@ -109,6 +109,34 @@ func TestXYEncoderToIndex(t *testing.T) {
 	}
 }
 
+func TestGameMoveUnit(t *testing.T) {
+	in := `#######
+#.G...#
+#...EG#
+#.#.#G#
+#..G#E#
+#.....#
+#######
+`
+	g := GameFrom([]byte(in))
+	var u *Unit
+	for _, v := range g.Units {
+		if v.X == 2 && v.Y == 1 {
+			u = v
+			break
+		}
+	}
+
+	moved := g.moveUnit(u)
+	if !moved {
+		t.Error("did not move")
+	}
+
+	if u.X == 2 && u.Y == 1 {
+		t.Errorf("thinks it moved but didn't: %v\n", u)
+	}
+}
+
 func TestXYEncoderFromIndex(t *testing.T) {
 	in := `#######
 #.G...#
@@ -135,32 +163,31 @@ func TestGameOutcome(t *testing.T) {
 		t.Skip("testing in short mode")
 	}
 
-	in := `#######
-#.G...#
-#...EG#
-#.#.#G#
-#..G#E#
-#.....#
-#######
-`
-	g := GameFrom([]byte(in))
-	for i := 0; g.RunRound(); i++ {
-		if i < 3 {
-			fmt.Println(i, "-----------")
-			fmt.Println(string(g.Map.data))
-			for _, u := range g.Units {
-				fmt.Println(*u)
-			}
-		}
-		if i > 50 {
-			t.Fail()
-			return
-		}
+	cc := []struct {
+		in, ex         string
+		round, outcome int
+	}{
+		{"#######\n#G..#E#\n#E#E.E#\n#G.##.#\n#...#E#\n#...E.#\n#######\n",
+			"#######\n#...#E#\n#E#...#\n#.E##.#\n#E..#E#\n#.....#\n#######\n",
+			37, 36334},
+		{"#######\n#.G...#\n#...EG#\n#.#.#G#\n#..G#E#\n#.....#\n#######\n",
+			"#######\n#.G...#\n#...EG#\n#.#.#G#\n#..G#E#\n#.....#\n#######\n",
+			47, 27730},
 	}
-	exp := 27730
-	act := g.Outcome()
-	if act != exp {
-		t.Errorf("got %d expected %d", act, exp)
+
+	for i, c := range cc {
+		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
+			g := GameFrom([]byte(c.in))
+			for g.RunRound() {
+			}
+			act := g.Outcome()
+			if act != c.outcome {
+				t.Errorf("outcome got %d expected %d", act, c.outcome)
+			}
+			if g.Round != c.round {
+				t.Errorf("round got %d expected %d", g.Round, c.round)
+			}
+		})
 	}
 }
 
@@ -169,29 +196,33 @@ func TestPathCalculatorDist(t *testing.T) {
 #..##
 #G.E#
 #G#.#
-#...#
+#G..#
 #####`
+	exp := `-----
+-32--
+-21--
+---1-
+-432-
+-----
+`
 
 	g := GameFrom([]byte(in))
 	p := PathCalculatorFrom(g)
 	start := g.Map.XY.ToIndex(3, 2)
 	img := NewBytesImage(5, 6)
-	fmt.Println(img.data)
 	img.ForEach(func(x, y int, _ byte) {
 		vi := g.Map.XY.ToIndex(x, y)
 		v := p.Dist(start, vi)
-		if y == 2 {
-			fmt.Println(x, y, start, vi, v)
-		}
 		vs := strconv.Itoa(v)
 		if v > 9 {
 			vs = "-"
 		}
 		img.Set(x, y, []byte(vs)[0])
 	})
-	fmt.Println(string(g.Map.data))
-	fmt.Println(string(img.data))
-	t.Fail()
+
+	if string(img.data) != exp {
+		t.Errorf("got %d\n%v\nexpected %d\n%v\n", len(img.data), string(img.data), len(exp), exp)
+	}
 }
 
 func TestBytesImageFor4Neighbors(t *testing.T) {
