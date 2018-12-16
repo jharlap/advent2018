@@ -39,11 +39,9 @@ func main() {
 
 	fmt.Println("Samples behaving like 3+ ops:", n)
 
-	fmt.Println("od:", od)
+	//fmt.Println("od:", od)
 
-	cpu := CPUFrom(od)
-
-	// figured out on paper
+	// figured out on paper based on above
 	/*
 		cpu := CPU{
 			Reg: make([]int, 4),
@@ -67,6 +65,8 @@ func main() {
 			},
 		}
 	*/
+
+	cpu := CPUFrom(od)
 
 	ll, err = readLines("../inputs/16_prog.txt")
 	if err != nil {
@@ -373,9 +373,9 @@ func (od *opDecoder) solve() []opNamed {
 	ops := make([]opNamed, len(allOps))
 	known := make(map[int]bool)
 
-	for j := range allOps {
-		if known[j] {
-			continue
+	for range allOps {
+		if len(known) == len(allOps) {
+			break
 		}
 		for i := range allOps {
 			if known[i] {
